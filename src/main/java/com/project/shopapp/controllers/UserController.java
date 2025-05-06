@@ -2,6 +2,7 @@ package com.project.shopapp.controllers;
 
 import com.project.shopapp.dtos.UserDTO;
 import com.project.shopapp.dtos.UserLoginDTO;
+import com.project.shopapp.services.IUserService;
 import com.project.shopapp.services.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class UserController {
             if(!userDTO.getPassword().equals(userDTO.getRetypePassword())){
                 return ResponseEntity.badRequest().body("Password and retype password must be the same");
             }
+            userService.createUser(userDTO);
             return ResponseEntity.ok("Register successfully");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -42,6 +44,7 @@ public class UserController {
 //     Login
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody UserLoginDTO userLoginDTO) {
-        return ResponseEntity.ok("Login successfully");
+        String token = userService.login(userLoginDTO.getPhoneNumber(), userLoginDTO.getPassword());
+        return ResponseEntity.ok(token);
     }
 }
