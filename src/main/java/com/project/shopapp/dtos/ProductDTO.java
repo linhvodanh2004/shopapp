@@ -28,7 +28,7 @@ public class ProductDTO {
     private String thumbnail;
     private String description;
     @JsonProperty("category_id") // Use JsonProperty for mapping to database
-    private String categoryId;
+    private Long categoryId;
 
     private List<MultipartFile> files;
 }
