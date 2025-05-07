@@ -1,7 +1,12 @@
 package com.project.shopapp.controllers;
 
 import com.project.shopapp.dtos.ProductDTO;
+import com.project.shopapp.dtos.ProductImageDTO;
+import com.project.shopapp.models.Product;
+import com.project.shopapp.models.ProductImage;
+import com.project.shopapp.services.IProductService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +27,10 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("api/v1/products")
+@RequiredArgsConstructor
 public class ProductController {
+    private final IProductService productService;
+
     @GetMapping("")
     public ResponseEntity<String> getAllProducts() {
         return ResponseEntity.ok("Get all products");
@@ -33,36 +41,51 @@ public class ProductController {
         return ResponseEntity.status(HttpStatus.OK).body("Get product with id " + productId);
     }
 
-    @PostMapping(value = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> insertProduct(@Valid @ModelAttribute ProductDTO productDTO
-            , BindingResult bindingResult
-    ) {
+    @PostMapping(value = "")
+    public ResponseEntity<?> insertProduct(@Valid @RequestBody ProductDTO productDTO, BindingResult bindingResult) {
         try {
             if (bindingResult.hasErrors()) {
                 List<String> errors = bindingResult.getFieldErrors()
-                        .stream().map(FieldError::getDefaultMessage).toList();
+                        .stream()
+                        .map(FieldError::getDefaultMessage)
+                        .toList();
                 return ResponseEntity.badRequest().body(errors);
             }
-            List<MultipartFile> multipartFiles = productDTO.getFiles();
-            // create new files in case input file is null
-            multipartFiles = multipartFiles == null ? new ArrayList<MultipartFile>() : multipartFiles;
-            for (MultipartFile multipartFile : multipartFiles) {
-                // continue if file size is 0
-                if (multipartFile.getSize() == 0) {
+            Product newProduct = productService.createProduct(productDTO);
+            return ResponseEntity.status(HttpStatus.OK).body(newProduct);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping(value = "uploads/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> uploadImages(@ModelAttribute("files") List<MultipartFile> files,
+                                          @PathVariable("id") Long productId) {
+        try {
+            Product newProduct = productService.getProductById(productId);
+            files = (files == null) ? new ArrayList<MultipartFile>() : files;
+            List<ProductImage> productImages = new ArrayList<>();
+            for (MultipartFile file : files) {
+                if (file.getSize() == 0) {
                     continue;
                 }
-                if (multipartFile.getSize() > 10 * 1024 * 1024) {
+                if (file.getSize() > 10 * 1024 * 1024) {
                     return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body("The size of image is too large");
                 }
-                String contentType = multipartFile.getContentType();
+                String contentType = file.getContentType();
                 if (contentType == null || !contentType.startsWith("image/")) {
                     return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body("The file must be image");
                 }
-                String fileName = storeFile(multipartFile);
+                String fileName = storeFile(file);
+
+                ProductImage productImage = productService.createProductImage(newProduct.getId(),
+                        ProductImageDTO
+                                .builder()
+                                .imageUrl(fileName)
+                                .build());
+                productImages.add(productImage);
             }
-            return ResponseEntity.status(HttpStatus.OK).body("Add new product successfully: " + productDTO.getName());
-
-
+            return ResponseEntity.ok(productImages);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

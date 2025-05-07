@@ -30,5 +30,5 @@ public class ProductDTO {
     @JsonProperty("category_id") // Use JsonProperty for mapping to database
     private Long categoryId;
 
-    private List<MultipartFile> files;
+//    private List<MultipartFile> files;
 }
