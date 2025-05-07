@@ -82,7 +82,7 @@ public class ProductService implements IProductService {
 
     @Override
     public ProductImage createProductImage(Long productId, ProductImageDTO productImageDTO) throws Exception {
-        Product product = productRepository.findById(productImageDTO.getProductId())
+        Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new DataNotFoundException("Product not found"));
         ProductImage productImage = ProductImage
                 .builder()

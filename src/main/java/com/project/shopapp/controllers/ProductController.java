@@ -58,12 +58,13 @@ public class ProductController {
         }
     }
 
-    @PostMapping(value = "uploads/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> uploadImages(@ModelAttribute("files") List<MultipartFile> files,
-                                          @PathVariable("id") Long productId) {
+    @PostMapping(value = "/uploads/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> uploadImages(
+            @PathVariable("id") Long productId,
+            @RequestParam("files") List<MultipartFile> files){
         try {
             Product newProduct = productService.getProductById(productId);
-            files = (files == null) ? new ArrayList<MultipartFile>() : files;
+            files = files == null ? new ArrayList<MultipartFile>() : files;
             List<ProductImage> productImages = new ArrayList<>();
             for (MultipartFile file : files) {
                 if (file.getSize() == 0) {
