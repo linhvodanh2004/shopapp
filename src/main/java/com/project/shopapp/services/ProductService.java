@@ -1,5 +1,6 @@
 package com.project.shopapp.services;
 
+import com.github.javafaker.Faker;
 import com.project.shopapp.dtos.ProductDTO;
 import com.project.shopapp.dtos.ProductImageDTO;
 import com.project.shopapp.exceptions.DataNotFoundException;
@@ -14,7 +15,9 @@ import com.project.shopapp.responses.ProductResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PostMapping;
 
 import java.util.Optional;
 
@@ -41,13 +44,11 @@ public class ProductService implements IProductService {
     }
 
     @Override
-    public Product getProductById(Long id) {
-        try {
-            return productRepository.findById(id)
-                    .orElseThrow(() -> new DataNotFoundException("Product not found"));
-        } catch (DataNotFoundException e) {
-            return null;
-        }
+    public Product getProductById(Long id) throws DataNotFoundException {
+
+        return productRepository.findById(id)
+                .orElseThrow(() -> new DataNotFoundException("Product not found"));
+
     }
 
     @Override
@@ -68,24 +69,14 @@ public class ProductService implements IProductService {
         existingProduct.setThumbnail(productDTO.getThumbnail());
         existingProduct.setDescription(productDTO.getDescription());
         existingProduct.setCategory(category);
+
         return productRepository.save(existingProduct);
     }
 
     @Override
     public Page<ProductResponse> getAllProducts(PageRequest pageRequest) {
         return productRepository.findAll(pageRequest)
-                .map(product -> {
-                    ProductResponse productResponse = ProductResponse.builder()
-                            .name(product.getName())
-                            .price(product.getPrice())
-                            .thumbnail(product.getThumbnail())
-                            .description(product.getDescription())
-                            .categoryId(product.getCategory().getId())
-                            .build();
-                    productResponse.setCreatedAt(product.getCreatedAt());
-                    productResponse.setUpdatedAt(product.getUpdatedAt());
-                    return productResponse;
-                });
+                .map(ProductResponse::fromProduct);
     }
 
     @Override
@@ -110,4 +101,5 @@ public class ProductService implements IProductService {
         }
         return productImageRepository.save(productImage);
     }
+
 }
