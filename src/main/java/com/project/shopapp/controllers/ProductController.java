@@ -4,9 +4,14 @@ import com.project.shopapp.dtos.ProductDTO;
 import com.project.shopapp.dtos.ProductImageDTO;
 import com.project.shopapp.models.Product;
 import com.project.shopapp.models.ProductImage;
+import com.project.shopapp.responses.ProductListResponse;
+import com.project.shopapp.responses.ProductResponse;
 import com.project.shopapp.services.IProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -32,8 +37,22 @@ public class ProductController {
     private final IProductService productService;
 
     @GetMapping("")
-    public ResponseEntity<String> getAllProducts() {
-        return ResponseEntity.ok("Get all products");
+    public ResponseEntity<?> getAllProducts(
+            @RequestParam("page") int page,
+            @RequestParam("limit") int limit
+    ) {
+        PageRequest pageRequest = PageRequest.of(
+                page, limit,
+                Sort.by("createdAt").descending());
+        Page<ProductResponse> productResponsePagePage = productService.getAllProducts(pageRequest);
+        int totalPages = productResponsePagePage.getTotalPages();
+        List<ProductResponse> productResponses = productResponsePagePage.getContent();
+        ProductListResponse productListResponse = ProductListResponse
+                .builder()
+                .products(productResponses)
+                .totalPages(totalPages)
+                .build();
+        return ResponseEntity.ok(productListResponse);
     }
 
     @GetMapping("/{id}")
@@ -61,10 +80,15 @@ public class ProductController {
     @PostMapping(value = "/uploads/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadImages(
             @PathVariable("id") Long productId,
-            @RequestParam("files") List<MultipartFile> files){
+            @RequestParam("files") List<MultipartFile> files) {
         try {
             Product newProduct = productService.getProductById(productId);
             files = files == null ? new ArrayList<MultipartFile>() : files;
+            if (files.size() > ProductImage.MAXIMUM_IMAGES_PER_PRODUCT) {
+                return ResponseEntity
+                        .status(HttpStatus.BAD_REQUEST)
+                        .body("You can upload only 5 images maximum");
+            }
             List<ProductImage> productImages = new ArrayList<>();
             for (MultipartFile file : files) {
                 if (file.getSize() == 0) {
@@ -93,6 +117,9 @@ public class ProductController {
     }
 
     private String storeFile(MultipartFile multipartFile) throws IOException {
+        if (!isImage(multipartFile) || multipartFile.getOriginalFilename() == null) {
+            throw new IOException("Invalid image file format");
+        }
         String fileName = StringUtils.cleanPath(multipartFile.getOriginalFilename());
         String uniqueName = UUID.randomUUID().toString() + "_" + fileName;
         Path uploadDir = Paths.get("uploads");
@@ -102,6 +129,11 @@ public class ProductController {
         Path destination = Paths.get(uploadDir.toString(), uniqueName);
         Files.copy(multipartFile.getInputStream(), destination, StandardCopyOption.REPLACE_EXISTING);
         return uniqueName;
+    }
+
+    private boolean isImage(MultipartFile file) {
+        String contentType = file.getContentType();
+        return contentType != null && contentType.startsWith("image/");
     }
 
     @PutMapping("/{id}")
